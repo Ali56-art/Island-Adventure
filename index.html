@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Island Adventure</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body, html {
+            width: 100%;
+            height: 100%;
+            background-color: #0f172a;
+            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        #app {
+            display: flex;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        .sidebar {
+            width: 280px;
+            background: #0b1329;
+            border-right: 2px solid #1e293b;
+            display: flex;
+            flex-direction: column;
+            padding: 30px 20px;
+            gap: 15px;
+            z-index: 10;
+        }
+
+        .sidebar h2 {
+            font-size: 24px;
+            margin-bottom: 20px;
+            color: #38bdf8;
+            letter-spacing: 1px;
+        }
+
+        .menu-btn {
+            background: #1e293b;
+            color: #ffffff;
+            border: 1px solid #334155;
+            padding: 15px 20px;
+            text-align: left;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .menu-btn:hover {
+            background: #38bdf8;
+            color: #0f172a;
+            border-color: #38bdf8;
+            transform: translateX(5px);
+        }
+
+        .main-content {
+            flex: 1;
+            background: #0f172a;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            padding: 40px;
+        }
+
+        .panel {
+            display: none;
+            width: 100%;
+            height: 100%;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .panel.active {
+            display: flex;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.98); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .how-to-play-box {
+            max-width: 700px;
+            background: rgba(30, 41, 59, 0.7);
+            border: 1px solid #334155;
+            padding: 35px;
+            border-radius: 12px;
+            line-height: 1.8;
+            font-size: 17px;
+            text-align: left;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        }
+
+        .how-to-play-box h3 {
+            color: #38bdf8;
+            margin-bottom: 20px;
+            font-size: 26px;
+            text-align: center;
+        }
+
+        .mode-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            align-items: center;
+            animation: slowMotionIn 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes slowMotionIn {
+            0% { opacity: 0; transform: scale(0.8) translateY(30px); }
+            100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        .action-btn {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 16px 40px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background 0.3s, transform 0.2s;
+            box-shadow: 0 4px 15px rgba(37, 99, 235,.4);
+        }
+
+        .action-btn:hover {
+            background: #1d4ed8;
+            transform: scale(1.05);
+        }
+
+        .pin-input-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .pin-input-group input {
+            padding: 12px 16px;
+            font-size: 16px;
+            border-radius: 8px;
+            border: 1px solid #475569;
+            background: #1e293b;
+            color: white;
+            outline: none;
+            width: 200px;
+            text-align: center;
+        }
+
+        #fade-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: black;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 2000;
+        }
+
+        #game-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 50;
+            display: none;
+        }
+
+        .cinematic-bar {
+            position: fixed;
+            left: 0;
+            width: 100vw;
+            height: 0vh;
+            background: black;
+            z-index: 1500;
+            transition: height 1.2s cubic-bezier(0.25, 1, 0.5, 1);
+            pointer-events: none;
+        }
+        #cinematic-top { top: 0; }
+        #cinematic-bottom { bottom: 0; }
+
+        .cinematic-active #cinematic-top,
+        .cinematic-active #cinematic-bottom {
+            height: 12vh;
+        }
+
+        #online-hud {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            pointer-events: none;
+        }
+
+        .hud-btn {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+            pointer-events: auto;
+        }
+
+        .hud-btn:hover {
+            background: #059669;
+        }
+
+        .leave-btn {
+            background: #ef4444;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+        }
+        .leave-btn:hover {
+            background: #dc2626;
+        }
+
+        .lobby-code-badge {
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid #334155;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            color: #38bdf8;
+        }
+
+        .controls-hint {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid #334155;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 15px;
+            z-index: 100;
+            display: none;
+            color: #ffffff;
+            text-align: center;
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+<div id="fade-screen"></div>
+<div id="cinematic-top" class="cinematic-bar"></div>
+<div id="cinematic-bottom" class="cinematic-bar"></div>
+
+<audio id="siren-audio" src="https://ia801509.us.archive.org/16/items/air-raid-siren-sound-effect/Air%20Raid%20Siren%20Sound%20Effect.mp3" preload="auto"></audio>
+<audio id="bomb-audio" src="https://ia600900.us.archive.org/24/items/bomb-explosion-sound/bomb-explosion.mp3" preload="auto"></audio>
+
+<canvas id="game-canvas"></canvas>
+
+<div id="online-hud">
+    <div style="display: flex; gap: 10px;">
+        <button class="hud-btn" id="start-btn" onclick="startActualGame()">Oyunu Başlat</button>
+        <button class="hud-btn leave-btn" onclick="leaveToLobby()">Lobiden Ayrıl</button>
+    </div>
+    <div class="lobby-code-badge" id="display-lobby-code">Lobi Kodu: Yükleniyor...</div>
+</div>
+
+<div class="controls-hint" id="controls-hint">
+    Etrafı incelemek için **ekrana tıklayın** (Mouse imleci gizlenecektir).
+</div>
+
+<div id="app">
+    <div class="sidebar">
+        <h2>Island Adventure</h2>
+        <button class="menu-btn" onclick="switchPanel('play-panel')">Play</button>
+        <button class="menu-btn" onclick="switchPanel('options-panel')">Options</button>
+        <button class="menu-btn" onclick="switchPanel('how-to-play-panel')">How to Play</button>
+    </div>
+
+    <div class="main-content">
+        <div id="play-panel" class="panel active">
+            <div class="mode-container" id="play-initial">
+                <button class="action-btn" onclick="showModes()">Oyuna Başla</button>
+            </div>
+            <div class="mode-container" id="play-modes" style="display: none;">
+                <button class="action-btn" onclick="enterOnlineMode()">Online</button>
+                <button class="action-btn" onclick="alert('Offline mod yakında eklenecek!')">Offline</button>
+                <div class="pin-input-group">
+                    <input type="text" id="pin-input" placeholder="Pin Girin (Lobi Kodu)">
+                    <button class="action-btn" style="padding: 12px 20px; font-size: 14px;" onclick="joinWithPin()">Katıl</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="options-panel" class="panel">
+            <h2 style="color: #38bdf8; margin-bottom: 20px;">Ayarlar</h2>
+            <p>Ses efektleri ve grafik ayarları yakında burada yer alacak.</p>
+        </div>
+
+        <div id="how-to-play-panel" class="panel">
+            <div class="how-to-play-box">
+                <h3>How to play?</h3>
+                <p>Oyun Minecraft'a benzer ama telifli değildir. Oyundaki bütün içerikler Ali Ferhan Yiğit ve Asrın tarafından yapılmıştır. Bu içeriklerde yaratma, düşünme ve oluşturma, hayatta kalma ve macera içerikleri belirir. Bu oyun beyninizi güçlendirmeyi ve geliştirmeye daha çok yardımcı olur. İyi oyunlar dileriz.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentLobbyCode = Math.floor(100000 + Math.random() * 900000);
+    document.getElementById('display-lobby-code').innerText = "Lobi Kodu: " + currentLobbyCode;
+
+    function switchPanel(panelId) {
+        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+        document.getElementById(panelId).classList.add('active');
+        document.getElementById('play-modes').style.display = 'none';
+        document.getElementById('play-initial').style.display = 'flex';
+    }
+
+    function showModes() {
+        document.getElementById('play-initial').style.display = 'none';
+        document.getElementById('play-modes').style.display = 'flex';
+    }
+
+    function joinWithPin() {
+        const pin = document.getElementById('pin-input').value;
+        if(pin.trim() !== "") {
+            enterOnlineMode();
+        } else {
+            alert("Lütfen geçerli bir lobi kodu (Pin) girin!");
+        }
+    }
+
+    // Lobiden Ayrılma Fonksiyonu
+    function leaveToLobby() {
+        const fade = document.getElementById('fade-screen');
+        fade.style.opacity = '1';
+
+        setTimeout(() => {
+            // Sesleri durdur
+            document.getElementById('siren-audio').pause();
+            document.getElementById('siren-audio').currentTime = 0;
+
+            // UI ve Canvas durumlarını sıfırla
+            isCinematicActive = false;
+            isIslandGameplayAppActive = false;
+            if (document.exitPointerLock) document.exitPointerLock();
+
+            document.getElementById('game-canvas').style.display = 'none';
+            document.getElementById('online-hud').style.display = 'none';
+            document.getElementById('controls-hint').style.display = 'none';
+            document.body.classList.remove('cinematic-active');
+
+            // Ana menüyü aç
+            document.getElementById('app').style.display = 'flex';
+            switchPanel('play-panel');
+
+            setTimeout(() => {
+                fade.style.opacity = '0';
+            }, 500);
+        }, 800);
+    }
+
+    let scene, camera, renderer;
+    let yaw = 0, pitch = 0;
+    let isPointerLocked = false;
+    let isCinematicActive = false;
+    let isIslandGameplayActive = false;
+    let alarmLight, planeGroup;
+
+    const colliders = [];
+    const keys = { KeyW: false, KeyS: false, KeyA: false, KeyD: false, Space: false };
+    let velocityY = 0;
+    let isGrounded = true;
+    const gravity = -24;
+    const jumpStrength = 7.5;
+    const moveSpeed = 6.5;
+    const playerRadius = 0.6;
+
+    function enterOnlineMode() {
+        const fade = document.getElementById('fade-screen');
+        fade.style.opacity = '1';
+
+        setTimeout(() => {
+            document.getElementById('app').style.display = 'none';
+            document.getElementById('online-hud').style.display = 'flex';
+            document.getElementById('controls-hint').style.display = 'block';
+            document.getElementById('game-canvas').style.display = 'block';
+
+            initThreeJS();
+
+            setTimeout(() => {
+                fade.style.opacity = '0';
+            }, 500);
+        }, 1000);
+    }
+
+    function initThreeJS() {
+        const canvas = document.getElementById('game-canvas');
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0f172a);
+
+        camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(-1.1, 1.35, 0.1);
+
+        renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, powerPreference: "high-performance" });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
+        scene.add(ambientLight);
+
+        planeGroup = new THREE.Group();
+        scene.add(planeGroup);
+
+        const alarmGroup = new THREE.Group();
+        alarmGroup.position.set(0, 2.5, -3);
+
+        const alarmBase = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.2, 0.25, 0.1, 16),
+            new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.8 })
+        );
+        alarmGroup.add(alarmBase);
+
+        const alarmDome = new THREE.Mesh(
+            new THREE.SphereGeometry(0.18, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2),
+            new THREE.MeshBasicMaterial({ color: 0xff0000 })
+        );
+        alarmDome.position.y = 0.05;
+        alarmGroup.add(alarmDome);
+
+        alarmLight = new THREE.PointLight(0xff0000, 0, 15);
+        alarmLight.position.set(0, 0.1, 0);
+        alarmGroup.add(alarmLight);
+
+        planeGroup.add(alarmGroup);
+
+        const cabinWidth = 3.8;
+        const cabinHeight = 2.6;
+        const cabinLength = 14;
+
+        const wallMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.2 });
+        const floorMat = new THREE.MeshStandardMaterial({ color: 0x0f172a });
+        const ceilingMat = new THREE.MeshStandardMaterial({ color: 0x090d16 });
+
+        const floorMesh = new THREE.Mesh(new THREE.BoxGeometry(cabinWidth, 0.2, cabinLength), floorMat);
+        floorMesh.position.set(0, -0.1, 0);
+        planeGroup.add(floorMesh);
+
+        const ceilingMesh = new THREE.Mesh(new THREE.BoxGeometry(cabinWidth, 0.2, cabinLength), ceilingMat);
+        ceilingMesh.position.set(0, cabinHeight, 0);
+        planeGroup.add(ceilingMesh);
+
+        const backWall = new THREE.Mesh(new THREE.BoxGeometry(cabinWidth, cabinHeight, 0.2), wallMat);
+        backWall.position.set(0, cabinHeight/2, cabinLength/2);
+        planeGroup.add(backWall);
+
+        const frontWall = new THREE.Mesh(new THREE.BoxGeometry(cabinWidth, cabinHeight, 0.2), wallMat);
+        frontWall.position.set(0, cabinHeight/2, -cabinLength/2);
+        planeGroup.add(frontWall);
+
+        const doorFrameMat = new THREE.MeshStandardMaterial({ color: 0x334155 });
+        const doorMat = new THREE.MeshStandardMaterial({ color: 0x0f172a });
+        
+        const doorFrame = new THREE.Mesh(new THREE.BoxGeometry(1.2, 2.1, 0.1), doorFrameMat);
+        doorFrame.position.set(0, 1.05, -cabinLength/2 + 0.15);
+        planeGroup.add(doorFrame);
+
+        const doorMesh = new THREE.Mesh(new THREE.BoxGeometry(1.0, 1.95, 0.08), doorMat);
+        doorMesh.position.set(0, 1.0, -cabinLength/2 + 0.18);
+        planeGroup.add(doorMesh);
+
+        const rightWall = new THREE.Mesh(new THREE.BoxGeometry(0.2, cabinHeight, cabinLength), wallMat);
+        rightWall.position.set(cabinWidth/2, cabinHeight/2, 0);
+        planeGroup.add(rightWall);
+
+        const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.2, cabinHeight, cabinLength), wallMat);
+        leftWall.position.set(-cabinWidth/2, cabinHeight/2, 0);
+        planeGroup.add(leftWall);
+
+        const windowFrameMat = new THREE.MeshStandardMaterial({ color: 0x334155 });
+        const pureBlueMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+
+        for(let z = -4.5; z <= 4.5; z += 2.0) {
+            const frame = new THREE.Mesh(new THREE.BoxGeometry(0.25, 1.2, 0.8), windowFrameMat);
+            frame.position.set(-cabinWidth/2, 1.35, z);
+            planeGroup.add(frame);
+
+            const glass = new THREE.Mesh(new THREE.BoxGeometry(0.22, 1.1, 0.7), pureBlueMat);
+            glass.position.set(-cabinWidth/2, 1.35, z);
+            planeGroup.add(glass);
+        }
+
+        const seatBaseMat = new THREE.MeshStandardMaterial({ color: 0x334155 });
+        const seatCushionMat = new THREE.MeshStandardMaterial({ color: 0x1e3a8a });
+
+        for(let i = 0; i < 5; i++) {
+            const zPos = -4 + (i * 2.2);
+
+            const leftSeat = createSeat(seatBaseMat, seatCushionMat);
+            leftSeat.position.set(-1.1, 0, zPos);
+            planeGroup.add(leftSeat);
+
+            const rightSeat = createSeat(seatBaseMat, seatCushionMat);
+            rightSeat.position.set(1.1, 0, zPos);
+            planeGroup.add(rightSeat);
+        }
+
+        canvas.addEventListener('click', () => {
+            canvas.requestPointerLock();
+        });
+
+        document.addEventListener('pointerlockchange', () => {
+            if (document.pointerLockElement === canvas) {
+                isPointerLocked = true;
+                document.getElementById('controls-hint').style.display = 'none';
+            } else {
+                isPointerLocked = false;
+                if(!isCinematicActive && !isIslandGameplayActive) {
+                    document.getElementById('controls-hint').style.display = 'block';
+                }
+            }
+        });
+
+        window.addEventListener('keydown', (e) => {
+            if (keys.hasOwnProperty(e.code)) keys[e.code] = true;
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (keys.hasOwnProperty(e.code)) keys[e.code] = false;
+        });
+
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('resize', onWindowResize);
+
+        let lastTime = performance.now();
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const now = performance.now();
+            const delta = (now - lastTime) / 1000;
+            lastTime = now;
+
+            if (isIslandGameplayActive && isPointerLocked) {
+                updateIslandMovement(delta);
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        animate();
+    }
+
+    function createSeat(baseMat, cushionMat) {
+        const group = new THREE.Group();
+        const seatBox = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.15, 0.75), cushionMat);
+        seatBox.position.set(0, 0.4, 0);
+        group.add(seatBox);
+
+        const backBox = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.95, 0.15), cushionMat);
+        backBox.position.set(0, 0.85, 0.32);
+        group.add(backBox);
+
+        const headRest = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.25, 0.18), cushionMat);
+        headRest.position.set(0, 1.35, 0.32);
+        group.add(headRest);
+
+        const armRestLeft = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.6), baseMat);
+        armRestLeft.position.set(-0.38, 0.6, 0.05);
+        group.add(armRestLeft);
+
+        const armRestRight = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.6), baseMat);
+        armRestRight.position.set(0.38, 0.6, 0.05);
+        group.add(armRestRight);
+
+        const leg = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.35, 0.5), baseMat);
+        leg.position.set(0, 0.175, 0);
+        group.add(leg);
+
+        return group;
+    }
+
+    function onMouseMove(e) {
+        if (!isPointerLocked) return;
+        if (isCinematicActive && !isIslandGameplayActive) return;
+
+        const sensitivity = 0.0025;
+        yaw -= e.movementX * sensitivity;
+        pitch -= e.movementY * sensitivity;
+
+        pitch = Math.max(-Math.PI / 2.5, Math.min(Math.PI / 2.5, pitch));
+
+        const euler = new THREE.Euler(pitch, yaw, 0, 'YXZ');
+        camera.quaternion.setFromEuler(euler);
+    }
+
+    function updateIslandMovement(delta) {
+        const moveVector = new THREE.Vector3(0, 0, 0);
+
+        if (keys.KeyW) moveVector.z -= 1;
+        if (keys.KeyS) moveVector.z += 1;
+        if (keys.KeyA) moveVector.x -= 1;
+        if (keys.KeyD) moveVector.x += 1;
+
+        moveVector.normalize();
+
+        const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+        const side = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+
+        const finalMove = new THREE.Vector3();
+        finalMove.addScaledVector(forward, -moveVector.z * moveSpeed * delta);
+        finalMove.addScaledVector(side, moveVector.x * moveSpeed * delta);
+
+        const newX = camera.position.x + finalMove.x;
+        const newZ = camera.position.z + finalMove.z;
+
+        let canMoveX = true;
+        let canMoveZ = true;
+
+        for (let collider of colliders) {
+            const dx = newX - collider.x;
+            const dz = camera.position.z - collider.z;
+            if (Math.sqrt(dx * dx + dz * dz) < (playerRadius + collider.radius)) {
+                canMoveX = false;
+            }
+
+            const dx2 = camera.position.x - collider.x;
+            const dz2 = newZ - collider.z;
+            if (Math.sqrt(dx2 * dx2 + dz2 * dz2) < (playerRadius + collider.radius)) {
+                canMoveZ = false;
+            }
+        }
+
+        if (canMoveX) camera.position.x = newX;
+        if (canMoveZ) camera.position.z = newZ;
+
+        if (keys.Space && isGrounded) {
+            velocityY = jumpStrength;
+            isGrounded = false;
+        }
+
+        velocityY += gravity * delta;
+        camera.position.y += velocityY * delta;
+
+        // KESİN ÇÖZÜM: Zemin seviyesi (Kum/Çim üstü) tam 2.4 birim olarak sabitlendi ve batma engellendi.
+        const groundHeight = 2.4; 
+        if (camera.position.y <= groundHeight) {
+            camera.position.y = groundHeight;
+            velocityY = 0;
+            isGrounded = true;
+        }
+    }
+
+    function buildRealisticIslandScene() {
+        scene.clear();
+        colliders.length = 0;
+
+        scene.background = new THREE.Color(0x38bdf8);
+        scene.fog = new THREE.FogExp2(0x38bdf8, 0.005);
+
+        const sun = new THREE.DirectionalLight(0xfffbeb, 2.8);
+        sun.position.set(50, 80, 40);
+        sun.castShadow = true;
+        scene.add(sun);
+        scene.add(new THREE.AmbientLight(0xffffff, 0.9));
+
+        // Kumsal üzerinde tam zemin üstünde başlangıç konumu (Y: 2.4)
+        camera.position.set(-2, 2.4, 12);
+        yaw = 0;
+        pitch = 0;
+        camera.quaternion.setFromEuler(new THREE.Euler(0, 0, 0, 'YXZ'));
+
+        const sandMat = new THREE.MeshStandardMaterial({ color: 0xeab308, roughness: 0.9 });
+        const grassMat = new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.8 });
+        const waterMat = new THREE.MeshPhysicalMaterial({ color: 0x0284c7, transparent: true, opacity: 0.75, roughness: 0.1, transmission: 0.8 });
+        const barkMat = new THREE.MeshStandardMaterial({ color: 0x451a03, roughness: 0.9 });
+        const leafMat = new THREE.MeshStandardMaterial({ color: 0x166534, roughness: 0.6 });
+
+        // Deniz
+        const ocean = new THREE.Mesh(new THREE.PlaneGeometry(500, 500), waterMat);
+        ocean.rotation.x = -Math.PI / 2;
+        ocean.position.set(0, 0, 0);
+        scene.add(ocean);
+
+        // Kumsal Zemin (Denize Yakın Alanlar - Kum)
+        const island = new THREE.Mesh(new THREE.CylinderGeometry(85, 95, 2.0, 64), sandMat);
+        island.position.set(0, 1.0, -20);
+        scene.add(island);
+
+        // Orman Zemin Tepesi (Ağaçların Olduğu Yer - Çim)
+        const forestHill = new THREE.Mesh(new THREE.CylinderGeometry(55, 65, 3.0, 64), grassMat);
+        forestHill.position.set(0, 2.5, -25);
+        scene.add(forestHill);
+
+        // Ağaçlar ve Çarpışma Sınırları
+        for(let i = 0; i < 55; i++) {
+            const tree = new THREE.Group();
+            
+            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.55, 5, 16), barkMat);
+            trunk.position.y = 2.5;
+            tree.add(trunk);
+
+            const leaves1 = new THREE.Mesh(new THREE.ConeGeometry(3.0, 5, 16), leafMat);
+            leaves1.position.y = 5.5;
+            tree.add(leaves1);
+
+            const leaves2 = new THREE.Mesh(new THREE.ConeGeometry(2.2, 4, 16), leafMat);
+            leaves2.position.y = 7.5;
+            tree.add(leaves2);
+
+            const rx = (Math.random() - 0.5) * 75;
+            const rz = -25 + (Math.random() - 0.5) * 50;
+            
+            tree.position.set(rx, 4.0, rz);
+            scene.add(tree);
+
+            colliders.push({ x: rx, z: rz, radius: 0.8 });
+        }
+
+        // Kuma Saplanmış Uçak Enkazı
+        const planeEnkaz = new THREE.Group();
+        const planeBodyMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.8, roughness: 0.2 });
+        const wingMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, metalness: 0.6 });
+
+        const body = new THREE.Mesh(new THREE.CylinderGeometry(1.8, 1.8, 14, 32), planeBodyMat);
+        body.rotation.x = Math.PI / 2;
+        planeEnkaz.add(body);
+
+        const wing = new THREE.Mesh(new THREE.BoxGeometry(16, 0.2, 3.5), wingMat);
+        wing.position.set(0, 0.2, 1);
+        planeEnkaz.add(wing);
+
+        const engineMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.9 });
+        const leftEng = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.6, 2.2, 16), engineMat);
+        leftEng.rotation.x = Math.PI / 2;
+        leftEng.position.set(-5, -0.6, 1);
+        planeEnkaz.add(leftEng);
+
+        planeEnkaz.position.set(-8, 2.0, 4);
+        planeEnkaz.rotation.x = 0.55;  
+        planeEnkaz.rotation.z = -0.25; 
+        scene.add(planeEnkaz);
+
+        colliders.push({ x: -8, z: 4, radius: 2.5 });
+    }
+
+    function startActualGame() {
+        isCinematicActive = true;
+        if (document.exitPointerLock) document.exitPointerLock();
+
+        document.getElementById('online-hud').style.display = 'none';
+        document.getElementById('controls-hint').style.display = 'none';
+        document.body.classList.add('cinematic-active');
+
+        camera.quaternion.setFromEuler(new THREE.Euler(0, 0, 0, 'YXZ'));
+
+        setTimeout(() => {
+            const sirenAudio = document.getElementById('siren-audio');
+            sirenAudio.volume = 0.8;
+            sirenAudio.play().catch(e => console.log(e));
+
+            let alarmInterval = setInterval(() => {
+                alarmLight.intensity = alarmLight.intensity === 0 ? 4.0 : 0;
+            }, 300);
+
+            setTimeout(() => {
+                clearInterval(alarmInterval);
+                sirenAudio.pause();
+
+                const bombAudio = document.getElementById('bomb-audio');
+                bombAudio.volume = 1.0;
+                bombAudio.play().catch(e => console.log(e));
+
+                document.getElementById('fade-screen').style.opacity = '1';
+
+                setTimeout(() => {
+                    buildRealisticIslandScene();
+                    document.getElementById('fade-screen').style.opacity = '0';
+                    document.body.classList.remove('cinematic-active');
+                    
+                    isCinematicActive = false;
+                    isIslandGameplayActive = true;
+
+                    const hint = document.getElementById('controls-hint');
+                    hint.innerText = "Adaya Ulaştın! **WASD** ile yürü, **Space** ile zıpla.";
+                    hint.style.display = 'block';
+
+                }, 1800);
+
+            }, 8000);
+
+        }, 10000);
+    }
+
+    function onWindowResize() {
+        if (!camera || !renderer) return;
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+</script>
+
+</body>
+</html>
