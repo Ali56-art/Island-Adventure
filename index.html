@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Island Adventure</title>
     <style>
         * {
@@ -18,6 +18,7 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             overflow: hidden;
             user-select: none;
+            -webkit-user-select: none;
         }
 
         #app {
@@ -144,6 +145,12 @@
             transform: scale(1.05);
         }
 
+        .control-select-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+        }
+
         .pin-input-group {
             display: flex;
             gap: 10px;
@@ -266,6 +273,70 @@
             text-align: center;
             box-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
         }
+
+        /* MOBİL JOYSTICK VE ZIPLAMA TUŞU ARAYÜZÜ */
+        #mobile-controls {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 200;
+            display: none;
+        }
+
+        #joystick-base {
+            position: absolute;
+            bottom: 40px;
+            left: 40px;
+            width: 120px;
+            height: 120px;
+            background: rgba(255, 255, 255, 0.15);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            pointer-events: auto;
+            touch-action: none;
+        }
+
+        #joystick-stick {
+            position: absolute;
+            top: 30px;
+            left: 30px;
+            width: 60px;
+            height: 60px;
+            background: rgba(56, 189, 248, 0.7);
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            pointer-events: none;
+            transition: transform 0.05s linear;
+        }
+
+        #mobile-jump-btn {
+            position: absolute;
+            bottom: 50px;
+            right: 50px;
+            width: 85px;
+            height: 85px;
+            background: rgba(37, 99, 235, 0.8);
+            border: 3px solid #ffffff;
+            border-radius: 50%;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            pointer-events: auto;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+            cursor: pointer;
+            touch-action: none;
+            display: none; /* Başlangıçta gizli, adaya gelince açılacak */
+        }
+        #mobile-jump-btn:active {
+            background: rgba(29, 78, 216, 0.9);
+            transform: scale(0.95);
+        }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
@@ -279,6 +350,14 @@
 <audio id="bomb-audio" src="https://ia600900.us.archive.org/24/items/bomb-explosion-sound/bomb-explosion.mp3" preload="auto"></audio>
 
 <canvas id="game-canvas"></canvas>
+
+<!-- Mobil Joystick ve Zıplama Butonu -->
+<div id="mobile-controls">
+    <div id="joystick-base">
+        <div id="joystick-stick"></div>
+    </div>
+    <button id="mobile-jump-btn">Zıpla</button>
+</div>
 
 <div id="online-hud">
     <div style="display: flex; gap: 10px;">
@@ -316,8 +395,12 @@
         </div>
 
         <div id="options-panel" class="panel">
-            <h2 style="color: #38bdf8; margin-bottom: 20px;">Ayarlar</h2>
-            <p>Ses efektleri ve grafik ayarları yakında burada yer alacak.</p>
+            <h2 style="color: #38bdf8; margin-bottom: 20px;">Kontrol Modu Seçimi</h2>
+            <div class="control-select-group">
+                <button class="action-btn" id="btn-mode-pc" onclick="setControlMode('pc')" style="background: #10b981;">PC (Klavye)</button>
+                <button class="action-btn" id="btn-mode-mobile" onclick="setControlMode('mobile')" style="background: #334155;">Dokunmatik (Mobil)</button>
+            </div>
+            <p id="current-mode-desc" style="margin-top: 25px; color: #38bdf8; font-size: 16px;">Şu anki mod: PC (WASD + Space)</p>
         </div>
 
         <div id="how-to-play-panel" class="panel">
@@ -332,6 +415,26 @@
 <script>
     let currentLobbyCode = Math.floor(100000 + Math.random() * 900000);
     document.getElementById('display-lobby-code').innerText = "Lobi Kodu: " + currentLobbyCode;
+
+    // Kontrol Modu: 'pc' veya 'mobile'
+    let controlMode = 'pc';
+
+    function setControlMode(mode) {
+        controlMode = mode;
+        const pcBtn = document.getElementById('btn-mode-pc');
+        const mobBtn = document.getElementById('btn-mode-mobile');
+        const desc = document.getElementById('current-mode-desc');
+
+        if(mode === 'pc') {
+            pcBtn.style.background = '#10b981';
+            mobBtn.style.background = '#334155';
+            desc.innerText = "Şu anki mod: PC (WASD + Space)";
+        } else {
+            mobBtn.style.background = '#10b981';
+            pcBtn.style.background = '#334155';
+            desc.innerText = "Şu anki mod: Dokunmatik (Joystick + Zıplama Butonu)";
+        }
+    }
 
     function switchPanel(panelId) {
         document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
@@ -354,27 +457,25 @@
         }
     }
 
-    // Lobiden Ayrılma Fonksiyonu
     function leaveToLobby() {
         const fade = document.getElementById('fade-screen');
         fade.style.opacity = '1';
 
         setTimeout(() => {
-            // Sesleri durdur
             document.getElementById('siren-audio').pause();
             document.getElementById('siren-audio').currentTime = 0;
 
-            // UI ve Canvas durumlarını sıfırla
             isCinematicActive = false;
-            isIslandGameplayAppActive = false;
+            isIslandGameplayActive = false;
             if (document.exitPointerLock) document.exitPointerLock();
 
             document.getElementById('game-canvas').style.display = 'none';
             document.getElementById('online-hud').style.display = 'none';
             document.getElementById('controls-hint').style.display = 'none';
+            document.getElementById('mobile-controls').style.display = 'none';
+            document.getElementById('mobile-jump-btn').style.display = 'none';
             document.body.classList.remove('cinematic-active');
 
-            // Ana menüyü aç
             document.getElementById('app').style.display = 'flex';
             switchPanel('play-panel');
 
@@ -393,6 +494,10 @@
 
     const colliders = [];
     const keys = { KeyW: false, KeyS: false, KeyA: false, KeyD: false, Space: false };
+    
+    // Joystick Hareket Vektörü
+    let joystickMove = { x: 0, y: 0 };
+
     let velocityY = 0;
     let isGrounded = true;
     const gravity = -24;
@@ -407,8 +512,15 @@
         setTimeout(() => {
             document.getElementById('app').style.display = 'none';
             document.getElementById('online-hud').style.display = 'flex';
-            document.getElementById('controls-hint').style.display = 'block';
             document.getElementById('game-canvas').style.display = 'block';
+
+            if(controlMode === 'pc') {
+                document.getElementById('controls-hint').style.display = 'block';
+            } else {
+                // Dokunmatik modda başlangıçta joystick görünür
+                document.getElementById('mobile-controls').style.display = 'block';
+                document.getElementById('mobile-jump-btn').style.display = 'none'; // Ada gelene kadar zıplama gizli
+            }
 
             initThreeJS();
 
@@ -530,17 +642,21 @@
         }
 
         canvas.addEventListener('click', () => {
-            canvas.requestPointerLock();
+            if(controlMode === 'pc') {
+                canvas.requestPointerLock();
+            }
         });
 
         document.addEventListener('pointerlockchange', () => {
-            if (document.pointerLockElement === canvas) {
-                isPointerLocked = true;
-                document.getElementById('controls-hint').style.display = 'none';
-            } else {
-                isPointerLocked = false;
-                if(!isCinematicActive && !isIslandGameplayActive) {
-                    document.getElementById('controls-hint').style.display = 'block';
+            if (controlMode === 'pc') {
+                if (document.pointerLockElement === canvas) {
+                    isPointerLocked = true;
+                    document.getElementById('controls-hint').style.display = 'none';
+                } else {
+                    isPointerLocked = false;
+                    if(!isCinematicActive && !isIslandGameplayActive) {
+                        document.getElementById('controls-hint').style.display = 'block';
+                    }
                 }
             }
         });
@@ -556,6 +672,8 @@
         window.addEventListener('mousemove', onMouseMove);
         window.addEventListener('resize', onWindowResize);
 
+        setupJoystickAndTouch();
+
         let lastTime = performance.now();
 
         function animate() {
@@ -565,14 +683,131 @@
             const delta = (now - lastTime) / 1000;
             lastTime = now;
 
-            if (isIslandGameplayActive && isPointerLocked) {
-                updateIslandMovement(delta);
+            if (isIslandGameplayActive) {
+                if(controlMode === 'pc' && isPointerLocked) {
+                    updateIslandMovement(delta);
+                } else if(controlMode === 'mobile') {
+                    updateIslandMovement(delta);
+                }
             }
 
             renderer.render(scene, camera);
         }
 
         animate();
+    }
+
+    // Mobil Joystick ve Kamera Sürükleme Mantığı
+    function setupJoystickAndTouch() {
+        const base = document.getElementById('joystick-base');
+        const stick = document.getElementById('joystick-stick');
+        const jumpBtn = document.getElementById('mobile-jump-btn');
+
+        let joystickTouchId = null;
+        let lookTouchId = null;
+        let lastTouchX = 0;
+        let lastTouchY = 0;
+
+        base.addEventListener('touchstart', (e) => {
+            if(controlMode !== 'mobile') return;
+            const touch = e.changedTouches[0];
+            joystickTouchId = touch.identifier;
+            e.preventDefault();
+        }, { passive: false });
+
+        base.addEventListener('touchmove', (e) => {
+            if(controlMode !== 'mobile') return;
+            for(let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                if(touch.identifier === joystickTouchId) {
+                    const rect = base.getBoundingClientRect();
+                    const centerX = rect.left + rect.width / 2;
+                    const centerY = rect.top + rect.height / 2;
+
+                    let dx = touch.clientX - centerX;
+                    let dy = touch.clientY - centerY;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const maxDist = 45;
+
+                    if(dist > maxDist) {
+                        dx = (dx / dist) * maxDist;
+                        dy = (dy / dist) * maxDist;
+                    }
+
+                    stick.style.transform = `translate(${dx}px, ${dy}px)`;
+                    joystickMove.x = dx / maxDist;
+                    joystickMove.y = dy / maxDist;
+                }
+            }
+            e.preventDefault();
+        }, { passive: false });
+
+        const resetJoystick = (e) => {
+            for(let i = 0; i < e.changedTouches.length; i++) {
+                if(e.changedTouches[i].identifier === joystickTouchId) {
+                    joystickTouchId = null;
+                    stick.style.transform = `translate(0px, 0px)`;
+                    joystickMove.x = 0;
+                    joystickMove.y = 0;
+                }
+            }
+        };
+        base.addEventListener('touchend', resetJoystick);
+        base.addEventListener('touchcancel', resetJoystick);
+
+        // Ekranın sağ/boş kısmında parmak sürükleyerek etrafa bakma (Mobil Kamera)
+        window.addEventListener('touchstart', (e) => {
+            if(controlMode !== 'mobile' || isCinematicActive) return;
+            for(let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                // Eğer sol tarafta joystick alanı değilse kamera kontrolü başlasın
+                if(touch.clientX > window.innerWidth / 2 && lookTouchId === null) {
+                    lookTouchId = touch.identifier;
+                    lastTouchX = touch.clientX;
+                    lastTouchY = touch.clientY;
+                }
+            }
+        });
+
+        window.addEventListener('touchmove', (e) => {
+            if(controlMode !== 'mobile' || isCinematicActive) return;
+            for(let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                if(touch.identifier === lookTouchId) {
+                    const dx = touch.clientX - lastTouchX;
+                    const dy = touch.clientY - lastTouchY;
+                    lastTouchX = touch.clientX;
+                    lastTouchY = touch.clientY;
+
+                    const sensitivity = 0.005;
+                    yaw -= dx * sensitivity;
+                    pitch -= dy * sensitivity;
+                    pitch = Math.max(-Math.PI / 2.5, Math.min(Math.PI / 2.5, pitch));
+
+                    const euler = new THREE.Euler(pitch, yaw, 0, 'YXZ');
+                    camera.quaternion.setFromEuler(euler);
+                }
+            }
+        });
+
+        const endLook = (e) => {
+            for(let i = 0; i < e.changedTouches.length; i++) {
+                if(e.changedTouches[i].identifier === lookTouchId) {
+                    lookTouchId = null;
+                }
+            }
+        };
+        window.addEventListener('touchend', endLook);
+        window.addEventListener('touchcancel', endLook);
+
+        // Mobil Zıplama Butonu
+        jumpBtn.addEventListener('touchstart', (e) => {
+            if(controlMode === 'mobile' && isGrounded && isIslandGameplayActive) {
+                velocityY = jumpStrength;
+                isGrounded = false;
+            }
+            e.preventDefault();
+        }, { passive: false });
     }
 
     function createSeat(baseMat, cushionMat) {
@@ -605,7 +840,7 @@
     }
 
     function onMouseMove(e) {
-        if (!isPointerLocked) return;
+        if (controlMode !== 'pc' || !isPointerLocked) return;
         if (isCinematicActive && !isIslandGameplayActive) return;
 
         const sensitivity = 0.0025;
@@ -621,12 +856,17 @@
     function updateIslandMovement(delta) {
         const moveVector = new THREE.Vector3(0, 0, 0);
 
-        if (keys.KeyW) moveVector.z -= 1;
-        if (keys.KeyS) moveVector.z += 1;
-        if (keys.KeyA) moveVector.x -= 1;
-        if (keys.KeyD) moveVector.x += 1;
-
-        moveVector.normalize();
+        if(controlMode === 'pc') {
+            if (keys.KeyW) moveVector.z -= 1;
+            if (keys.KeyS) moveVector.z += 1;
+            if (keys.KeyA) moveVector.x -= 1;
+            if (keys.KeyD) moveVector.x += 1;
+            moveVector.normalize();
+        } else {
+            // Mobil Joystick Girdisi
+            moveVector.x = joystickMove.x;
+            moveVector.z = joystickMove.y;
+        }
 
         const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
         const side = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
@@ -658,15 +898,16 @@
         if (canMoveX) camera.position.x = newX;
         if (canMoveZ) camera.position.z = newZ;
 
-        if (keys.Space && isGrounded) {
-            velocityY = jumpStrength;
-            isGrounded = false;
+        if (controlMode === 'pc') {
+            if (keys.Space && isGrounded) {
+                velocityY = jumpStrength;
+                isGrounded = false;
+            }
         }
 
         velocityY += gravity * delta;
         camera.position.y += velocityY * delta;
 
-        // KESİN ÇÖZÜM: Zemin seviyesi (Kum/Çim üstü) tam 2.4 birim olarak sabitlendi ve batma engellendi.
         const groundHeight = 2.4; 
         if (camera.position.y <= groundHeight) {
             camera.position.y = groundHeight;
@@ -688,7 +929,6 @@
         scene.add(sun);
         scene.add(new THREE.AmbientLight(0xffffff, 0.9));
 
-        // Kumsal üzerinde tam zemin üstünde başlangıç konumu (Y: 2.4)
         camera.position.set(-2, 2.4, 12);
         yaw = 0;
         pitch = 0;
@@ -700,23 +940,19 @@
         const barkMat = new THREE.MeshStandardMaterial({ color: 0x451a03, roughness: 0.9 });
         const leafMat = new THREE.MeshStandardMaterial({ color: 0x166534, roughness: 0.6 });
 
-        // Deniz
         const ocean = new THREE.Mesh(new THREE.PlaneGeometry(500, 500), waterMat);
         ocean.rotation.x = -Math.PI / 2;
         ocean.position.set(0, 0, 0);
         scene.add(ocean);
 
-        // Kumsal Zemin (Denize Yakın Alanlar - Kum)
         const island = new THREE.Mesh(new THREE.CylinderGeometry(85, 95, 2.0, 64), sandMat);
         island.position.set(0, 1.0, -20);
         scene.add(island);
 
-        // Orman Zemin Tepesi (Ağaçların Olduğu Yer - Çim)
         const forestHill = new THREE.Mesh(new THREE.CylinderGeometry(55, 65, 3.0, 64), grassMat);
         forestHill.position.set(0, 2.5, -25);
         scene.add(forestHill);
 
-        // Ağaçlar ve Çarpışma Sınırları
         for(let i = 0; i < 55; i++) {
             const tree = new THREE.Group();
             
@@ -741,7 +977,6 @@
             colliders.push({ x: rx, z: rz, radius: 0.8 });
         }
 
-        // Kuma Saplanmış Uçak Enkazı
         const planeEnkaz = new THREE.Group();
         const planeBodyMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.8, roughness: 0.2 });
         const wingMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, metalness: 0.6 });
@@ -774,6 +1009,7 @@
 
         document.getElementById('online-hud').style.display = 'none';
         document.getElementById('controls-hint').style.display = 'none';
+        document.getElementById('mobile-controls').style.display = 'none';
         document.body.classList.add('cinematic-active');
 
         camera.quaternion.setFromEuler(new THREE.Euler(0, 0, 0, 'YXZ'));
@@ -805,9 +1041,18 @@
                     isCinematicActive = false;
                     isIslandGameplayActive = true;
 
-                    const hint = document.getElementById('controls-hint');
-                    hint.innerText = "Adaya Ulaştın! **WASD** ile yürü, **Space** ile zıpla.";
-                    hint.style.display = 'block';
+                    // Adaya gelindiğinde seçilen moda göre kontroller açılır
+                    if(controlMode === 'mobile') {
+                        document.getElementById('mobile-controls').style.display = 'block';
+                        document.getElementById('mobile-jump-btn').style.display = 'flex'; // Zıplama tuşu adada açılır
+                        const hint = document.getElementById('controls-hint');
+                        hint.innerText = "Adaya Ulaştın! Sol alttan Joystick ile yürü, sağdaki Zıpla tuşunu kullan.";
+                        hint.style.display = 'block';
+                    } else {
+                        const hint = document.getElementById('controls-hint');
+                        hint.innerText = "Adaya Ulaştın! **WASD** ile yürü, **Space** ile zıpla.";
+                        hint.style.display = 'block';
+                    }
 
                 }, 1800);
 
